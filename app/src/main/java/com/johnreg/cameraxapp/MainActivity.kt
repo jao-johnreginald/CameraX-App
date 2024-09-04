@@ -11,7 +11,6 @@ import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageCapture.OnImageCapturedCallback
 import androidx.camera.core.ImageCaptureException
@@ -23,7 +22,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Cameraswitch
@@ -50,7 +48,6 @@ import kotlinx.coroutines.launch
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
 
         // If we don't have the required permissions, request them
         if (!hasRequiredPermissions()) {
@@ -98,24 +95,6 @@ class MainActivity : ComponentActivity() {
                                 .fillMaxSize()
                         )
 
-                        IconButton(
-                            onClick = {
-                                controller.cameraSelector =
-                                    if (controller.cameraSelector == CameraSelector.DEFAULT_BACK_CAMERA) {
-                                        CameraSelector.DEFAULT_FRONT_CAMERA
-                                    } else {
-                                        CameraSelector.DEFAULT_BACK_CAMERA
-                                    }
-                            },
-                            modifier = Modifier
-                                .offset(16.dp, 16.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Cameraswitch,
-                                contentDescription = "Switch camera"
-                            )
-                        }
-
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -123,6 +102,17 @@ class MainActivity : ComponentActivity() {
                                 .padding(16.dp),
                             horizontalArrangement = Arrangement.SpaceAround
                         ) {
+                            IconButton(
+                                onClick = {
+                                    controller.cameraSelector = cameraSelector(controller)
+                                }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Cameraswitch,
+                                    contentDescription = "Switch camera"
+                                )
+                            }
+
                             IconButton(
                                 onClick = {
                                     scope.launch {
@@ -154,6 +144,12 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    private fun cameraSelector(controller: LifecycleCameraController): CameraSelector {
+        return if (controller.cameraSelector == CameraSelector.DEFAULT_BACK_CAMERA) {
+            CameraSelector.DEFAULT_FRONT_CAMERA
+        } else CameraSelector.DEFAULT_BACK_CAMERA
     }
 
     private fun takePhoto(
