@@ -54,6 +54,8 @@ dependencies {
     //noinspection UseTomlInstead
     implementation("androidx.compose.material:material-icons-extended:1.6.8")
 
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.4")
+
     val cameraxVersion = "1.3.4"
 
     implementation("androidx.camera:camera-core:$cameraxVersion")
