@@ -3,6 +3,7 @@
 package com.johnreg.cameraxapp
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Matrix
@@ -15,8 +16,12 @@ import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageCapture.OnImageCapturedCallback
 import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.ImageProxy
+import androidx.camera.video.FileOutputOptions
+import androidx.camera.video.Recording
+import androidx.camera.video.VideoRecordEvent
 import androidx.camera.view.CameraController
 import androidx.camera.view.LifecycleCameraController
+import androidx.camera.view.video.AudioConfig
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -27,6 +32,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Cameraswitch
 import androidx.compose.material.icons.filled.Photo
 import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material3.BottomSheetScaffold
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -44,8 +50,14 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.johnreg.cameraxapp.ui.theme.CameraXAppTheme
 import kotlinx.coroutines.launch
+import java.io.File
 
 class MainActivity : ComponentActivity() {
+
+    // An active recording, an active video that is going to be recorded and contains information about that
+    // Initially that's null, but as soon as we start recording we want to assign something to that
+    private var recording: Recording? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -128,15 +140,30 @@ class MainActivity : ComponentActivity() {
 
                             IconButton(
                                 onClick = {
-                                    takePhoto(
-                                        controller = controller,
-                                        onPhotoTaken = viewModel::onTakePhoto
-                                    )
+                                    if (hasRequiredPermissions()) {
+                                        takePhoto(
+                                            controller = controller,
+                                            onPhotoTaken = viewModel::onTakePhoto
+                                        )
+                                    }
                                 }
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.PhotoCamera,
                                     contentDescription = "Take photo"
+                                )
+                            }
+
+                            IconButton(
+                                onClick = {
+                                    if (hasRequiredPermissions()) {
+                                        recordVideo(controller)
+                                    }
+                                }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Videocam,
+                                    contentDescription = "Record video"
                                 )
                             }
                         }
@@ -193,10 +220,52 @@ class MainActivity : ComponentActivity() {
                     Toast.makeText(
                         applicationContext, exception.localizedMessage, Toast.LENGTH_LONG
                     ).show()
-                    Log.e("Camera", "Couldn't take a photo: ", exception)
+                    Log.e("Camera", "Couldn't take photo: ", exception)
                 }
             }
         )
+    }
+
+    // Android Studio does not recognize that we already checked for permissions
+    @SuppressLint("MissingPermission")
+    private fun recordVideo(controller: LifecycleCameraController) {
+        if (recording != null) {
+            // We hit record while recording was already in progress
+            // In that case we want to stop the recording and save the video
+            recording?.stop()
+            recording = null
+        } else {
+            // This file will get overridden everytime we make a new recording
+            val outputFile = File(filesDir, "my-recording.mp4")
+            // Assign the return value to our recording object
+            recording = controller.startRecording(
+                // For videos there is not an in-memory data type like we have for photos (bitmaps)
+                // So we can only record a video by directly saving it on the file system
+                FileOutputOptions.Builder(outputFile).build(),
+                // AudioConfig.AUDIO_DISABLED if you want to record without audio
+                AudioConfig.create(true),
+                // Executor
+                ContextCompat.getMainExecutor(applicationContext),
+            ) { event ->
+                // When the recording is finished, we get this VideoRecordEvent
+                if (event is VideoRecordEvent.Finalize) {
+                    // If the event has any errors, close the recording
+                    if (event.hasError()) {
+                        recording?.close()
+                        recording = null
+
+                        Toast.makeText(
+                            applicationContext, event.cause?.localizedMessage, Toast.LENGTH_LONG
+                        ).show()
+                        Log.e("Camera", "Video capture failed: ", event.cause)
+                    } else {
+                        Toast.makeText(
+                            applicationContext, "Video capture succeeded", Toast.LENGTH_LONG
+                        ).show()
+                    }
+                }
+            }
+        }
     }
 
     // Check whether we have these permissions or not
@@ -216,4 +285,5 @@ class MainActivity : ComponentActivity() {
             Manifest.permission.RECORD_AUDIO,
         )
     }
+
 }
